@@ -1,10 +1,13 @@
 const { config } = require('../storage');
 
-const mapReduce = elements => elements.reduce((acc, c) => {
-  const el = {};
-  el[c.key] = c.value;
-  return Object.assign({}, acc, el);
-}, {});
+const mapReduce = (elements) => {
+  const data = elements.reduce((acc, c) => {
+    const el = { rev: c.rev };
+    el[c.key] = c.value;
+    return Object.assign({}, acc, el);
+  }, {});
+  return { data: Object.assign({}, data, { rev: undefined }), rev: data.rev };
+};
 
 module.exports = (req, res) => {
   const { version, client } = req.params;
@@ -15,7 +18,9 @@ module.exports = (req, res) => {
   }
   const found = config.find({ version, client }, rev);
   if (found.length > 0) {
-    res.status(200).send(mapReduce(found));
+    const { data, rev } = mapReduce(found);
+    res.header({ ETag: `W/"${rev}"` });
+    res.status(200).send(data);
   } else {
     res.status(304).send();
   }
